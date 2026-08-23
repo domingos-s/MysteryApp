@@ -1,0 +1,20 @@
+{
+  "name": "HEIST//SHIFT",
+  "short_name": "HEIST//SHIFT",
+  "description": "A fast memory-and-reflex cyber-heist game built for one-thumb play.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07090f",
+  "theme_color": "#07090f",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
