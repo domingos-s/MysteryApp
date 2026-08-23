@@ -32,10 +32,28 @@ const els = {
 
 const nodes = $$(".node");
 const mirrorMap = [2, 1, 0, 5, 4, 3, 8, 7, 6];
+
+function readStorage(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Storage can be unavailable in some embedded/private browsing contexts.
+  }
+}
+
 const storage = {
-  bestScore: Number(localStorage.getItem("heist-best-score") || 0),
-  bestRound: Number(localStorage.getItem("heist-best-round") || 0),
-  sound: localStorage.getItem("heist-sound") !== "off",
+  bestScore: Number(readStorage("heist-best-score", "0")) || 0,
+  bestRound: Number(readStorage("heist-best-round", "0")) || 0,
+  sound: readStorage("heist-sound", "on") !== "off",
 };
 
 let deferredInstallPrompt = null;
@@ -65,6 +83,14 @@ function createState() {
 function showScreen(name) {
   [els.startScreen, els.gameScreen, els.endScreen].forEach((el) => el.classList.add("hidden"));
   els[name].classList.remove("hidden");
+  window.scrollTo(0, 0);
+}
+
+function setNodesEnabled(enabled) {
+  nodes.forEach((node) => {
+    node.disabled = !enabled;
+    node.setAttribute("aria-disabled", String(!enabled));
+  });
 }
 
 function updateStartStats() {
@@ -77,6 +103,12 @@ function randomNode(previous = -1) {
   let value = Math.floor(Math.random() * 9);
   if (value === previous) value = (value + 1 + Math.floor(Math.random() * 8)) % 9;
   return value;
+}
+
+function randomNodeExcluding(exclusions = []) {
+  const blocked = new Set(exclusions.filter((value) => Number.isInteger(value)));
+  const available = Array.from({ length: 9 }, (_, index) => index).filter((index) => !blocked.has(index));
+  return available[Math.floor(Math.random() * available.length)];
 }
 
 function getModifier(round) {
@@ -118,7 +150,11 @@ function delay(ms) {
 }
 
 function vibrate(pattern) {
-  if (navigator.vibrate) navigator.vibrate(pattern);
+  try {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  } catch {
+    // Haptics are optional enhancement only.
+  }
 }
 
 function ensureAudio() {
@@ -127,24 +163,28 @@ function ensureAudio() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (AudioContext) audioCtx = new AudioContext();
   }
-  if (audioCtx?.state === "suspended") audioCtx.resume();
+  if (audioCtx?.state === "suspended") audioCtx.resume().catch(() => {});
 }
 
 function tone(frequency = 440, duration = 0.06, type = "sine", volume = 0.035) {
   if (!storage.sound) return;
   ensureAudio();
-  if (!audioCtx) return;
+  if (!audioCtx || audioCtx.state === "closed") return;
 
-  const oscillator = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  const now = audioCtx.currentTime;
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, now);
-  gain.gain.setValueAtTime(volume, now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-  oscillator.connect(gain).connect(audioCtx.destination);
-  oscillator.start(now);
-  oscillator.stop(now + duration);
+  try {
+    const oscillator = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, now);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(gain).connect(audioCtx.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+  } catch {
+    // Never let an audio implementation quirk break gameplay.
+  }
 }
 
 function clearNodeClasses() {
@@ -165,14 +205,14 @@ async function playSequence(token) {
   els.status.textContent = "MEMORIZE";
   els.instruction.textContent = state.modifier === "DECOYS" ? "Pink is noise. Cyan is signal." : "Watch carefully.";
   clearNodeClasses();
+  setNodesEnabled(false);
   await delay(450);
 
   for (let i = 0; i < state.sequence.length; i += 1) {
     if (token !== runToken) return;
 
     if (state.modifier === "DECOYS" && i > 0 && Math.random() < 0.65) {
-      let decoy = randomNode(state.sequence[i]);
-      if (decoy === state.sequence[i - 1]) decoy = (decoy + 2) % 9;
+      const decoy = randomNodeExcluding([state.sequence[i], state.sequence[i - 1]]);
       await flashNode(decoy, "decoy", 180, token);
     }
 
@@ -188,7 +228,8 @@ function updateHUD() {
   els.round.textContent = state.round;
   els.modifier.textContent = state.modifier;
   els.combo.textContent = state.combo.toFixed(2);
-  els.progressFill.style.width = `${(state.inputIndex / state.target.length) * 100}%`;
+  const progress = state.target.length ? (state.inputIndex / state.target.length) * 100 : 0;
+  els.progressFill.style.width = `${progress}%`;
 }
 
 function beginInput() {
@@ -198,6 +239,7 @@ function beginInput() {
   els.status.textContent = "YOUR MOVE";
   els.instruction.textContent = protocolInstruction(state.modifier);
   els.progressFill.style.width = "0%";
+  setNodesEnabled(true);
   tickTimer();
 }
 
@@ -221,6 +263,7 @@ function tickTimer() {
 async function startRound() {
   const token = runToken;
   state.acceptingInput = false;
+  setNodesEnabled(false);
   state.modifier = getModifier(state.round);
   state.timeLimit = getTimeLimit(state.round);
   state.sequence = makeSequence(getSequenceLength(state.round));
@@ -241,6 +284,7 @@ async function handleNodePress(event) {
 
   if (index !== expected) {
     state.acceptingInput = false;
+    setNodesEnabled(false);
     node.classList.add("bad");
     tone(120, 0.18, "sawtooth", 0.05);
     vibrate([55, 35, 90]);
@@ -261,12 +305,13 @@ async function handleNodePress(event) {
   updateHUD();
 
   if (state.inputIndex >= state.target.length) {
-    completeRound();
+    await completeRound();
   }
 }
 
 async function completeRound() {
   state.acceptingInput = false;
+  setNodesEnabled(false);
   cancelAnimationFrame(timerFrame);
   const remaining = Math.max(0, (state.deadline - performance.now()) / 1000);
   const speedBonus = Math.round(remaining * 18 * state.combo);
@@ -286,12 +331,13 @@ async function completeRound() {
   state.round += 1;
   await delay(780);
   if (els.gameScreen.classList.contains("hidden")) return;
-  startRound();
+  await startRound();
 }
 
 function failRun(reason) {
   if (els.gameScreen.classList.contains("hidden")) return;
   state.acceptingInput = false;
+  setNodesEnabled(false);
   cancelAnimationFrame(timerFrame);
   runToken += 1;
 
@@ -301,11 +347,11 @@ function failRun(reason) {
 
   if (isBest) {
     storage.bestScore = state.score;
-    localStorage.setItem("heist-best-score", String(storage.bestScore));
+    writeStorage("heist-best-score", String(storage.bestScore));
   }
   if (clearedRounds > storage.bestRound) {
     storage.bestRound = clearedRounds;
-    localStorage.setItem("heist-best-round", String(storage.bestRound));
+    writeStorage("heist-best-round", String(storage.bestRound));
   }
 
   els.resultBadge.textContent = isBest ? "NEW PERSONAL BEST" : reason;
@@ -327,8 +373,10 @@ function failRun(reason) {
 function startGame() {
   ensureAudio();
   runToken += 1;
+  cancelAnimationFrame(timerFrame);
   state = createState();
   clearNodeClasses();
+  setNodesEnabled(false);
   updateHUD();
   showScreen("gameScreen");
   startRound();
@@ -353,7 +401,7 @@ async function shareScore() {
 
 function toggleSound() {
   storage.sound = !storage.sound;
-  localStorage.setItem("heist-sound", storage.sound ? "on" : "off");
+  writeStorage("heist-sound", storage.sound ? "on" : "off");
   els.soundBtn.textContent = storage.sound ? "SFX ON" : "SFX OFF";
   if (storage.sound) {
     ensureAudio();
@@ -361,7 +409,7 @@ function toggleSound() {
   }
 }
 
-nodes.forEach((node) => node.addEventListener("pointerdown", handleNodePress));
+nodes.forEach((node) => node.addEventListener("click", handleNodePress));
 els.startBtn.addEventListener("click", startGame);
 els.retryBtn.addEventListener("click", startGame);
 els.shareBtn.addEventListener("click", shareScore);
@@ -397,4 +445,5 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+setNodesEnabled(false);
 updateStartStats();
