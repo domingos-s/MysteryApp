@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07090f" />
+  <meta name="description" content="HEIST//SHIFT — a fast memory-and-reflex PWA built for one-thumb play." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="HEIST//SHIFT" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <title>HEIST//SHIFT</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">FIELD TERMINAL // 09</div>
+        <h1>HEIST<span>//</span>SHIFT</h1>
+      </div>
+      <button id="soundBtn" class="icon-btn" type="button" aria-label="Toggle sound">SFX ON</button>
+    </header>
+
+    <section id="startScreen" class="panel start-screen">
+      <div class="hero-orbit" aria-hidden="true">
+        <div class="orbital-ring ring-a"></div>
+        <div class="orbital-ring ring-b"></div>
+        <div class="core-dot"></div>
+      </div>
+      <p class="kicker">MEMORY. REFLEX. ADAPTATION.</p>
+      <h2>Crack the vault before the trace hits.</h2>
+      <p class="lede">Watch the node sequence. Repeat it. Every few rounds the rules mutate: reverse order, mirrored controls, and decoy flashes.</p>
+
+      <div class="stat-strip">
+        <div><span>BEST SCORE</span><strong id="bestScore">0</strong></div>
+        <div><span>BEST ROUND</span><strong id="bestRound">0</strong></div>
+        <div><span>STATUS</span><strong id="installStatus">OFFLINE READY</strong></div>
+      </div>
+
+      <button id="startBtn" class="primary-btn" type="button">BEGIN HEIST</button>
+      <button id="installBtn" class="secondary-btn hidden" type="button">INSTALL APP</button>
+      <p class="fineprint">One thumb. About 90 seconds. No account. No ads.</p>
+    </section>
+
+    <section id="gameScreen" class="panel game-screen hidden" aria-live="polite">
+      <div class="hud">
+        <div><span>SCORE</span><strong id="score">0</strong></div>
+        <div class="center-hud"><span>ROUND</span><strong id="round">1</strong></div>
+        <div><span>TRACE</span><strong id="timer">12.0</strong></div>
+      </div>
+
+      <div class="mission-row">
+        <div>
+          <span class="mini-label">PROTOCOL</span>
+          <strong id="modifier">STANDARD</strong>
+        </div>
+        <div class="combo-box"><span>x</span><strong id="combo">1.0</strong></div>
+      </div>
+
+      <div id="status" class="status">MEMORIZE</div>
+
+      <div id="grid" class="node-grid" role="group" aria-label="Vault keypad">
+        <button class="node" data-index="0" aria-label="Node 1"><span>01</span></button>
+        <button class="node" data-index="1" aria-label="Node 2"><span>02</span></button>
+        <button class="node" data-index="2" aria-label="Node 3"><span>03</span></button>
+        <button class="node" data-index="3" aria-label="Node 4"><span>04</span></button>
+        <button class="node" data-index="4" aria-label="Node 5"><span>05</span></button>
+        <button class="node" data-index="5" aria-label="Node 6"><span>06</span></button>
+        <button class="node" data-index="6" aria-label="Node 7"><span>07</span></button>
+        <button class="node" data-index="7" aria-label="Node 8"><span>08</span></button>
+        <button class="node" data-index="8" aria-label="Node 9"><span>09</span></button>
+      </div>
+
+      <div class="progress-track"><div id="progressFill"></div></div>
+      <p id="instruction" class="instruction">Repeat the sequence.</p>
+    </section>
+
+    <section id="endScreen" class="panel end-screen hidden">
+      <div id="resultBadge" class="result-badge">TRACE COMPLETE</div>
+      <h2 id="resultTitle">Vault sealed.</h2>
+      <p id="resultText">You made it through 0 rounds.</p>
+
+      <div class="end-score">
+        <span>FINAL SCORE</span>
+        <strong id="finalScore">0</strong>
+      </div>
+
+      <div class="result-grid">
+        <div><span>ROUND</span><strong id="finalRound">0</strong></div>
+        <div><span>MAX COMBO</span><strong id="maxCombo">1.0x</strong></div>
+        <div><span>ACCURACY</span><strong id="accuracy">0%</strong></div>
+      </div>
+
+      <button id="retryBtn" class="primary-btn" type="button">RUN IT AGAIN</button>
+      <button id="shareBtn" class="secondary-btn" type="button">SHARE SCORE</button>
+    </section>
+
+    <footer>LOCAL TERMINAL // v1.0</footer>
+  </main>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
